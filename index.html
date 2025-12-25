@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="kn">
+<head>
+<meta charset="UTF-8">
+<title>CareTime</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+  font-family: Arial, sans-serif;
+  background:#f4fbff;
+  margin:0;
+}
+body.big{ font-size:20px; }
+
+header{
+  background:#2aa7a7;
+  color:white;
+  padding:14px;
+  text-align:center;
+}
+header small{
+  display:block;
+  font-size:13px;
+  opacity:0.9;
+}
+
+.container{ padding:15px; }
+
+.card{
+  background:#fff;
+  border-radius:12px;
+  padding:15px;
+  margin-bottom:15px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+h2{ margin-top:0; color:#2aa7a7; }
+
+label{ display:block; margin-top:10px; }
+
+input,select,button{
+  width:100%;
+  padding:10px;
+  margin-top:5px;
+  font-size:inherit;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+
+button{
+  background:#2aa7a7;
+  color:white;
+  border:none;
+  margin-top:12px;
+}
+
+.toggle{
+  background:#444;
+  margin-bottom:15px;
+}
+
+.item{
+  padding:8px 0;
+  border-bottom:1px solid #eee;
+}
+
+.small{ font-size:13px; color:#555; }
+
+.delete{
+  background:#e74c3c;
+  margin-top:5px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  ❤️ CareTime
+  <small>ಸರಿಯಾದ ಸಮಯಕ್ಕೆ ಕಾಳಜಿ</small>
+</header>
+
+<div class="container">
+
+<button class="toggle" onclick="toggleFont()">👴 Big Font Mode</button>
+
+<!-- MEDICINE -->
+<div class="card">
+  <h2>💊 ಔಷಧ ನೆನಪು</h2>
+
+  <label>ಔಷಧ ಹೆಸರು</label>
+  <input id="medName">
+
+  <label>ಸಮಯ</label>
+  <input type="time" id="medTime">
+
+  <button onclick="addMedicine()">ಸೇರಿಸಿ</button>
+  <div id="medList"></div>
+</div>
+
+<!-- BILL -->
+<div class="card">
+  <h2>💡 ಬಿಲ್ ನೆನಪು</h2>
+
+  <label>ಬಿಲ್ ಪ್ರಕಾರ</label>
+  <select id="billType">
+    <option>ಕರಂಟ್ ಬಿಲ್</option>
+    <option>ನೀರು ಬಿಲ್</option>
+    <option>ಮನೆ ಬಾಡಿಗೆ</option>
+    <option>ಫೋನ್ ಬಿಲ್</option>
+  </select>
+
+  <label>Due Date</label>
+  <input type="date" id="billDate">
+
+  <button onclick="addBill()">ಸೇರಿಸಿ</button>
+  <div id="billList"></div>
+</div>
+
+</div>
+
+<script>
+if("Notification"in window) Notification.requestPermission();
+
+let medicines=JSON.parse(localStorage.getItem("medicines"))||[];
+let bills=JSON.parse(localStorage.getItem("bills"))||[];
+let lastAlert="";
+
+function toggleFont(){
+  document.body.classList.toggle("big");
+}
+
+function addMedicine(){
+  if(!medName.value||!medTime.value) return alert("ಮಾಹಿತಿ ತುಂಬಿ");
+  medicines.push({name:medName.value,time:medTime.value});
+  save();
+}
+
+function addBill(){
+  if(!billDate.value) return alert("ದಿನಾಂಕ ಆಯ್ಕೆ ಮಾಡಿ");
+  bills.push({type:billType.value,date:billDate.value});
+  save();
+}
+
+function deleteMedicine(i){ medicines.splice(i,1); save(); }
+function deleteBill(i){ bills.splice(i,1); save(); }
+
+function save(){
+  localStorage.setItem("medicines",JSON.stringify(medicines));
+  localStorage.setItem("bills",JSON.stringify(bills));
+  medName.value=""; medTime.value=""; billDate.value="";
+  render();
+}
+
+function render(){
+  medList.innerHTML="";
+  medicines.forEach((m,i)=>{
+    medList.innerHTML+=`
+    <div class="item">
+      <b>${m.name}</b>
+      <div class="small">ಸಮಯ: ${m.time}</div>
+      <button class="delete" onclick="deleteMedicine(${i})">Delete</button>
+    </div>`;
+  });
+
+  billList.innerHTML="";
+  bills.forEach((b,i)=>{
+    billList.innerHTML+=`
+    <div class="item">
+      <b>${b.type}</b>
+      <div class="small">Due: ${b.date}</div>
+      <button class="delete" onclick="deleteBill(${i})">Delete</button>
+    </div>`;
+  });
+}
+
+function notify(title,msg){
+  if(Notification.permission==="granted"){
+    new Notification(title,{body:msg});
+  }else{
+    alert(title+" - "+msg);
+  }
+
+  // vibration + sound fallback
+  if(navigator.vibrate) navigator.vibrate([300,150,300]);
+}
+
+setInterval(()=>{
+  let now=new Date();
+  let t=now.toTimeString().slice(0,5);
+  let d=now.toISOString().slice(0,10);
+
+  medicines.forEach(m=>{
+    let key="med"+m.name+t;
+    if(m.time===t && lastAlert!==key){
+      notify("💊 ಔಷಧ ಸಮಯ",m.name+" ತೆಗೆದುಕೊಳ್ಳಿ");
+      lastAlert=key;
+    }
+  });
+
+  bills.forEach(b=>{
+    let key="bill"+b.type+d;
+    if(b.date===d && lastAlert!==key){
+      notify("💡 ಬಿಲ್ ನೆನಪು",b.type+" ಇಂದು Due");
+      lastAlert=key;
+    }
+  });
+},60000);
+
+render();
+</script>
+
+</body>
+</html>
